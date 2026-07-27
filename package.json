@@ -1,0 +1,13 @@
+{
+  "name": "khpets-license-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IP block/unblock dashboard + check-in API for the KHPets Minecraft plugin.",
+  "scripts": {
+    "dev": "vercel dev",
+    "local": "node local-server.js"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  }
+}

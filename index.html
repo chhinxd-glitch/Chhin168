@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KHPets License Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #262a34;
+    --text: #e6e8ec;
+    --muted: #8b93a5;
+    --green: #34d399;
+    --red: #f87171;
+    --accent: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+
+  .bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  input[type="password"], input[type="text"] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  button {
+    background: var(--accent);
+    color: #0f1115;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.danger { background: var(--red); color: #150707; }
+  button.ok { background: var(--green); color: #05150d; }
+  button:disabled { opacity: .5; cursor: default; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.online { background: rgba(52,211,153,.15); color: var(--green); }
+  .badge.blocked { background: rgba(248,113,113,.15); color: var(--red); }
+
+  .empty, .error {
+    color: var(--muted);
+    padding: 24px;
+    text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .error { color: var(--red); }
+  .note { margin-top: 16px; color: var(--muted); font-size: 12px; }
+  .actions { display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+  <h1>KHPets &mdash; License / IP Dashboard</h1>
+  <p class="sub">Servers that have KHPets installed and have checked in via <code>/api/ping</code>. Block an IP to disable pets on that server immediately &mdash; the block sticks even if the plugin is removed and reinstalled, since it's keyed by IP here, not by anything local to that server.</p>
+
+  <div class="bar">
+    <input type="password" id="adminKey" placeholder="Admin key" />
+    <button id="loadBtn">Load servers</button>
+    <button class="secondary" id="autoBtn">Auto-refresh: off</button>
+    <span id="status" class="note"></span>
+  </div>
+
+  <div id="content" class="empty">Enter your admin key and click "Load servers".</div>
+
+  <script>
+    const KEY_STORAGE = 'khpets_admin_key';
+    const adminKeyInput = document.getElementById('adminKey');
+    const content = document.getElementById('content');
+    const statusEl = document.getElementById('status');
+    const loadBtn = document.getElementById('loadBtn');
+    const autoBtn = document.getElementById('autoBtn');
+
+    adminKeyInput.value = sessionStorage.getItem(KEY_STORAGE) || '';
+    let autoTimer = null;
+
+    function fmtTime(ms) {
+      if (!ms) return '-';
+      return new Date(ms).toLocaleString();
+    }
+
+    async function api(path, opts) {
+      const key = adminKeyInput.value.trim();
+      sessionStorage.setItem(KEY_STORAGE, key);
+      const res = await fetch(path, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': key,
+          ...(opts && opts.headers),
+        },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || ('HTTP ' + res.status));
+      }
+      return res.json();
+    }
+
+    function render(servers, persistent) {
+      if (!servers.length) {
+        content.className = 'empty';
+        content.textContent = 'No servers have checked in yet.';
+        return;
+      }
+      const rows = servers.map((s) => `
+        <tr>
+          <td>${s.ip}</td>
+          <td>${s.server || '-'}</td>
+          <td>${s.version || '-'}</td>
+          <td>${s.players ?? '-'}</td>
+          <td>${fmtTime(s.firstSeen)}</td>
+          <td>${fmtTime(s.lastSeen)}</td>
+          <td><span class="badge ${s.blocked ? 'blocked' : 'online'}">${s.blocked ? 'Blocked' : 'Online'}</span></td>
+          <td class="actions">
+            ${s.blocked
+              ? `<button class="ok" data-action="unblock" data-ip="${s.ip}">Unblock</button>`
+              : `<button class="danger" data-action="block" data-ip="${s.ip}">Block</button>`}
+            <button class="secondary" data-action="remove" data-ip="${s.ip}">Remove</button>
+          </td>
+        </tr>`).join('');
+
+      content.className = '';
+      content.innerHTML = `
+        ${persistent ? '' : '<div class="note" style="margin-bottom:10px">⚠ No KV store connected &mdash; this list resets on cold start. Add a Vercel KV store to the project for persistence.</div>'}
+        <table>
+          <thead>
+            <tr>
+              <th>IP</th><th>Server</th><th>Version</th><th>Players</th>
+              <th>First seen</th><th>Last seen</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+
+      content.querySelectorAll('button[data-action]').forEach((btn) => {
+        btn.addEventListener('click', () => handleAction(btn.dataset.action, btn.dataset.ip));
+      });
+    }
+
+    async function handleAction(action, ip) {
+      try {
+        if (action === 'block' || action === 'unblock') {
+          const message = action === 'block' ? (prompt('Optional message shown in the console log (leave blank for none):') || '') : '';
+          await api('/api/block', { method: 'POST', body: JSON.stringify({ ip, blocked: action === 'block', message }) });
+        } else if (action === 'remove') {
+          if (!confirm(`Remove ${ip} from the list? (Does not un-block it if it's blocked - blocking state is separate from list visibility.)`)) return;
+          await api('/api/remove', { method: 'POST', body: JSON.stringify({ ip }) });
+        }
+        await load();
+      } catch (err) {
+        alert('Action failed: ' + err.message);
+      }
+    }
+
+    async function load() {
+      statusEl.textContent = 'Loading...';
+      try {
+        const data = await api('/api/servers');
+        render(data.servers || [], data.persistent);
+        statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        content.className = 'error';
+        content.textContent = 'Failed to load: ' + err.message;
+        statusEl.textContent = '';
+      }
+    }
+
+    loadBtn.addEventListener('click', load);
+    autoBtn.addEventListener('click', () => {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        autoBtn.textContent = 'Auto-refresh: off';
+      } else {
+        autoTimer = setInterval(load, 15000);
+        autoBtn.textContent = 'Auto-refresh: on';
+        load();
+      }
+    });
+
+    if (adminKeyInput.value) load();
+  </script>
+</body>
+</html>
