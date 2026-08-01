@@ -1,3 +1,22 @@
-"scripts": {
-  "start": "node bot.js"
+{
+  "name": "server-status-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot សម្រាប់ឆែកមើលស្ថានភាព Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "status",
+    "gamedig"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "gamedig": "^9.0.0",
+    "telegraf": "^4.16.0"
+  }
 }
