@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <title>My Web Terminal (Node.js)</title>
+
+    <!-- xterm.js: library សម្រាប់បង្ហាញ terminal ក្នុង browser -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/css/xterm.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/addon-fit/addon-fit.min.js"></script>
+
+    <!-- Socket.IO client (បម្រើដោយ server.js ស្វ័យប្រវត្តិនៅ /socket.io/socket.io.js) -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0d1117;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .titlebar {
+            background: #161b22;
+            color: #8b949e;
+            padding: 10px 16px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+        }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        #terminal-container {
+            flex: 1;
+            padding: 10px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="titlebar">
+        <div class="dot red"></div>
+        <div class="dot yellow"></div>
+        <div class="dot green"></div>
+        <span style="margin-left: 8px;">My Terminal — Node.js</span>
+    </div>
+
+    <div id="terminal-container"></div>
+
+    <script>
+        // ១. បង្កើត terminal instance
+        const term = new Terminal({
+            cursorBlink: true,
+            fontFamily: "Consolas, 'Courier New', monospace",
+            fontSize: 15,
+            theme: {
+                background: "#0d1117",
+                foreground: "#c9d1d9",
+                cursor: "#58a6ff"
+            }
+        });
+
+        // ២. FitAddon ធ្វើអោយ terminal សមខ្នាតទៅនឹងបង្អួច
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        term.open(document.getElementById('terminal-container'));
+        fitAddon.fit();
+
+        // ៣. តភ្ជាប់ទៅ Node.js backend តាម WebSocket
+        const socket = io();
+
+        // ៤. នៅពេលវាយអក្សរក្នុង terminal -> ផ្ញើទៅ server
+        term.onData(data => {
+            socket.emit('terminal_input', { input: data });
+        });
+
+        // ៥. នៅពេលទទួល output ពី server -> សរសេរលើ terminal
+        socket.on('terminal_output', (data) => {
+            term.write(data.output);
+        });
+
+        // ៦. ប្តូរទំហំ terminal នៅពេលបង្អួច browser ប្តូរទំហំ
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            socket.emit('resize', { rows: term.rows, cols: term.cols });
+        });
+
+        socket.on('connect', () => {
+            fitAddon.fit();
+            socket.emit('resize', { rows: term.rows, cols: term.cols });
+        });
+    </script>
+</body>
+</html>
