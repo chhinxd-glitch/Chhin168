@@ -1,14 +1,12 @@
 {
-  "name": "web-terminal-node",
+  "name": "github-test",
   "version": "1.0.0",
-  "description": "A browser-based terminal powered by Node.js, Express, Socket.IO, and node-pty",
-  "main": "server.js",
+  "description": "Test GitHub API with Node.js on Vercel",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node api/index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "node-pty": "^1.0.0"
+    "axios": "^1.6.0"
   }
 }
