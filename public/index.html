@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+        input, button { padding: 0.5rem; margin: 0.5rem 0; width: 100%; }
+        #result { margin-top: 1rem; border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+        img { border-radius: 50%; max-width: 100px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test GitHub User</h1>
+    <p>បញ្ចូលឈ្មោះអ្នកប្រើ GitHub ដើម្បីទាញយកព័ត៌មាន</p>
+    <input type="text" id="username" placeholder="e.g. octocat" value="octocat" />
+    <button onclick="fetchUser()">ស្វែងរក</button>
+    <div id="result"></div>
+
+    <script>
+        async function fetchUser() {
+            const username = document.getElementById('username').value.trim();
+            if (!username) return alert('សូមបញ្ចូលឈ្មោះអ្នកប្រើ');
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'កំពុងផ្ទុក...';
+
+            try {
+                const res = await fetch(`/api/github?username=${username}`);
+                const json = await res.json();
+
+                if (json.success) {
+                    const { login, name, bio, public_repos, avatar_url, html_url } = json.data;
+                    resultDiv.innerHTML = `
+                        <img src="${avatar_url}" alt="Avatar" />
+                        <h2>${name || login}</h2>
+                        <p><strong>Username:</strong> <a href="${html_url}" target="_blank">${login}</a></p>
+                        <p><strong>Bio:</strong> ${bio || 'មិនមាន bio'}</p>
+                        <p><strong>Public Repos:</strong> ${public_repos}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<p style="color:red;">❌ ${json.message}</p>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p style="color:red;">❌ មានកំហុសក្នុងការហៅ API</p>`;
+            }
+        }
+
+        // ហៅស្វ័យប្រវត្តិពេលចូលមកទំព័រ
+        window.onload = fetchUser;
+    </script>
+</body>
+</html>
